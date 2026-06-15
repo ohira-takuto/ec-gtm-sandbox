@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>商品一覧 | UNILO (demo)</title>
+<meta name="description" content="カテゴリ別の商品一覧">
+<link rel="stylesheet" href="assets/css/style.css">
+<script>window.dataLayer = window.dataLayer || []; window.__DL_DEBUG__ = true;</script>
+<!-- Google Tag Manager (プレースホルダ: GTM-XXXXXX) -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-XXXXXX');</script>
+<!-- End Google Tag Manager -->
+<!--
+  (任意) Google タグ gtag.js。GTM経由のGA4と二重計測になるため通常はこのままコメントで残す（学習用に併記）。
+  使う場合はGTM側のGA4設定タグを止めること。
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-XXXXXX');</script>
+-->
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXX" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div id="site-header"></div>
+
+<main class="container section">
+  <nav class="breadcrumb">
+    <a href="index.html">HOME</a>
+    <span>/</span>
+    <span data-bc-category></span>
+  </nav>
+  <h1 class="page-title" data-page-title></h1>
+  <p class="page-lead" data-page-lead></p>
+  <div id="grid"></div>
+</main>
+
+<div id="site-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/datalayer.js"></script>
+<script src="assets/js/common.js"></script>
+<!-- ページ別ロジックはこの下に1つの<script>で書く -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // 1) カテゴリの決定（無効/未指定は women を既定にする）
+  var param = window.App.getParam('category');
+  var meta = null;
+  for (var i = 0; i < window.DATA.categories.length; i++) {
+    if (window.DATA.categories[i].key === param) { meta = window.DATA.categories[i]; break; }
+  }
+  if (!meta) {
+    for (var j = 0; j < window.DATA.categories.length; j++) {
+      if (window.DATA.categories[j].key === 'women') { meta = window.DATA.categories[j]; break; }
+    }
+  }
+  var key = meta.key;
+
+  // 2) 該当カテゴリの商品を取得
+  var items = window.DATA.getByCategory(key);
+
+  // 3) パンくず / タイトル / 件数を埋める
+  document.querySelector('[data-bc-category]').textContent = meta.name;
+  document.querySelector('[data-page-title]').textContent = meta.name + ' ' + meta.jp;
+  document.querySelector('[data-page-lead]').textContent = items.length + '件の商品';
+
+  // 4) グリッド描画（view_item_list + 各カードに select_item を仕込む）
+  window.App.renderProductGrid(
+    document.getElementById('grid'),
+    items,
+    'category_' + key,
+    meta.name + ' 一覧'
+  );
+});
+</script>
+</body>
+</html>

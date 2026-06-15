@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ご注文完了 | UNILO (demo)</title>
+<meta name="description" content="購入完了(サンクスページ)">
+<link rel="stylesheet" href="assets/css/style.css">
+<script>window.dataLayer = window.dataLayer || []; window.__DL_DEBUG__ = true;</script>
+<!-- Google Tag Manager (プレースホルダ: GTM-XXXXXX) -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-XXXXXX');</script>
+<!-- End Google Tag Manager -->
+<!--
+  (任意) Google タグ gtag.js。GTM経由のGA4と二重計測になるため通常はこのままコメントで残す（学習用に併記）。
+  使う場合はGTM側のGA4設定タグを止めること。
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-XXXXXX');</script>
+-->
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXX" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div id="site-header"></div>
+
+<main class="container section">
+  <div id="complete-root"></div>
+</main>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var root = document.getElementById('complete-root');
+  if (!root) return;
+
+  var order = window.Store.getLastOrder();
+
+  // 注文が無い場合（直接アクセス・データ消失など）
+  if (!order) {
+    root.innerHTML = '' +
+      '<div class="complete-box">' +
+        '<h1 class="page-title">注文情報が見つかりません</h1>' +
+        '<p class="page-lead">お手数ですが、もう一度お買い物をお試しください。</p>' +
+        '<p style="margin-top:24px;"><a class="btn btn--dark" href="index.html">トップに戻る</a></p>' +
+      '</div>';
+    return;
+  }
+
+  // 計測（最重要 / 二重計測防止）:
+  // purchase は注文1件につき一度だけ発火させる。発火済みフラグを localStorage に持ち、
+  // このページをリロードしても order は残るが isOrderFired が true になるため再発火しない。
+  if (order && !window.Store.isOrderFired(order.transaction_id)) {
+    window.DL.purchase(order);
+    window.Store.markOrderFired(order.transaction_id);
+  }
+
+  // 注文明細（items / 内訳）の組み立て
+  var items = order.items || [];
+  var rows = items.map(function (it) {
+    var qty = it.quantity != null ? it.quantity : 1;
+    var lineTotal = (it.price != null ? it.price : 0) * qty;
+    var variant = it.item_variant ? it.item_variant : '-';
+    return '' +
+      '<div class="summary-row">' +
+        '<span>' + it.item_name + '<br>' +
+          '<small style="color:var(--ink-sub);font-size:var(--fs-xs);">' + variant + ' / 数量 ' + qty + '</small>' +
+        '</span>' +
+        '<span>' + window.App.yen(lineTotal) + '</span>' +
+      '</div>';
+  }).join('');
+
+  // GA4の order.value は「商品小計」。請求合計はそれに送料を足した額(消費税は内税)。
+  var shipping = order.shipping != null ? order.shipping : 0;
+  var tax = order.tax != null ? order.tax : 0;
+  var subtotal = order.value != null ? order.value : 0; // 商品小計(= GA4 value)
+  var total = subtotal + shipping;                      // 請求合計
+
+  root.innerHTML = '' +
+    '<div class="complete-box">' +
+      '<div class="complete-check">完了</div>' +
+      '<h1 class="page-title">ご注文ありがとうございました</h1>' +
+      '<p class="page-lead">注文番号: ' + order.transaction_id + '</p>' +
+      '<div class="order-detail">' +
+        rows +
+        '<div class="summary-row" style="border-top:1px solid var(--line);margin-top:12px;padding-top:16px;">' +
+          '<span>小計</span><span>' + window.App.yen(subtotal) + '</span>' +
+        '</div>' +
+        '<div class="summary-row">' +
+          '<span>送料</span><span>' + window.App.yen(shipping) + '</span>' +
+        '</div>' +
+        '<div class="summary-row">' +
+          '<span>消費税（内税）</span><span>' + window.App.yen(tax) + '</span>' +
+        '</div>' +
+        '<div class="summary-row summary-row--total">' +
+          '<span>合計</span><span>' + window.App.yen(total) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<p style="margin-top:24px;"><a class="btn btn--dark" href="index.html">トップに戻る</a></p>' +
+    '</div>';
+
+  // カートバッジを0にする（購入完了でカートは空になっている想定）
+  window.App.updateCartCount();
+});
+</script>
+
+<div id="site-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/datalayer.js"></script>
+<script src="assets/js/common.js"></script>
+<!-- ページ別ロジックはこの下に1つの<script>で書く -->
+</body>
+</html>

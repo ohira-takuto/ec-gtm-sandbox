@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>お支払い | UNILO (demo)</title>
+<meta name="description" content="チェックアウト">
+<link rel="stylesheet" href="assets/css/style.css">
+<script>window.dataLayer = window.dataLayer || []; window.__DL_DEBUG__ = true;</script>
+<!-- Google Tag Manager (プレースホルダ: GTM-XXXXXX) -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-XXXXXX');</script>
+<!-- End Google Tag Manager -->
+<!--
+  (任意) Google タグ gtag.js。GTM経由のGA4と二重計測になるため通常はこのままコメントで残す（学習用に併記）。
+  使う場合はGTM側のGA4設定タグを止めること。
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-XXXXXX');</script>
+-->
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXX" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div id="site-header"></div>
+
+<main class="container section">
+  <h1 class="page-title">ご注文手続き</h1>
+  <div id="checkout-root"></div>
+</main>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var root = document.getElementById('checkout-root');
+  var lines = window.Store.cartLines();
+
+  // カートが空なら案内して終了
+  if (!lines.length) {
+    root.innerHTML = '' +
+      '<p class="empty">カートに商品がありません。</p>' +
+      '<p style="text-align:center;">' +
+        '<a class="btn btn--outline" href="cart.html">カートを見る</a> ' +
+        '<a class="btn btn--dark" href="index.html">トップに戻る</a>' +
+      '</p>';
+    return;
+  }
+
+  var SHIP_COST = { standard: 0, express: 550 };
+  var SHIP_TIER = { standard: '通常配送', express: '速達' };
+  var PAY_LABEL = { credit: 'クレジットカード', cod: '代金引換', konbini: 'コンビニ払い' };
+
+  // レイアウト描画
+  root.innerHTML = '' +
+    '<div class="cart-layout">' +
+      '<div>' +
+        '<div class="form-card">' +
+          '<h3>お届け先</h3>' +
+          '<div class="field"><label for="ck-name">お名前</label><input type="text" id="ck-name" placeholder="山田 太郎"></div>' +
+          '<div class="field"><label for="ck-zip">郵便番号</label><input type="text" id="ck-zip" placeholder="100-0001"></div>' +
+          '<div class="field"><label for="ck-addr">住所</label><input type="text" id="ck-addr" placeholder="東京都千代田区千代田1-1"></div>' +
+        '</div>' +
+        '<div class="form-card" style="margin-top:24px;">' +
+          '<h3>配送方法</h3>' +
+          '<div class="radio-cards" id="ship-cards">' +
+            '<label class="radio-card is-active"><input type="radio" name="ship" value="standard" checked><span>通常配送 / 無料</span></label>' +
+            '<label class="radio-card"><input type="radio" name="ship" value="express"><span>速達 / 550円</span></label>' +
+          '</div>' +
+        '</div>' +
+        '<div class="form-card" style="margin-top:24px;">' +
+          '<h3>お支払い方法</h3>' +
+          '<div class="radio-cards" id="pay-cards">' +
+            '<label class="radio-card"><input type="radio" name="pay" value="credit"><span>クレジットカード</span></label>' +
+            '<label class="radio-card"><input type="radio" name="pay" value="cod"><span>代金引換</span></label>' +
+            '<label class="radio-card"><input type="radio" name="pay" value="konbini"><span>コンビニ払い</span></label>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<aside class="summary">' +
+        '<h3>ご注文内容</h3>' +
+        '<div class="summary-row"><span>小計</span><span id="sum-subtotal"></span></div>' +
+        '<div class="summary-row"><span>送料</span><span id="sum-shipping"></span></div>' +
+        '<div class="summary-row summary-row--total"><span>合計</span><span id="sum-total"></span></div>' +
+        '<button class="btn btn--primary btn--block" id="placeOrder" disabled>注文を確定する</button>' +
+        '<p class="note">これはデモです。実際の決済は行われません。</p>' +
+      '</aside>' +
+    '</div>';
+
+  var subtotal = window.Store.cartValue();
+
+  function selectedShip() {
+    var el = document.querySelector('input[name="ship"]:checked');
+    return el ? el.value : 'standard';
+  }
+  function selectedPay() {
+    var el = document.querySelector('input[name="pay"]:checked');
+    return el ? el.value : null;
+  }
+  function shippingCost() { return SHIP_COST[selectedShip()] || 0; }
+
+  // サマリーの送料/合計を更新
+  function renderSummary() {
+    var shipping = shippingCost();
+    document.getElementById('sum-subtotal').textContent = window.App.yen(subtotal);
+    document.getElementById('sum-shipping').textContent = shipping ? window.App.yen(shipping) : '無料';
+    document.getElementById('sum-total').textContent = window.App.yen(subtotal + shipping);
+  }
+  renderSummary();
+
+  // ラジオの is-active 表示を同期
+  function syncActive(name) {
+    var cards = document.querySelectorAll('input[name="' + name + '"]');
+    Array.prototype.forEach.call(cards, function (input) {
+      var card = input.closest('.radio-card');
+      if (card) { card.classList.toggle('is-active', input.checked); }
+    });
+  }
+
+  // 注文確定ボタンの活性制御（お支払い未選択時はdisabled）
+  function syncPlaceOrder() {
+    document.getElementById('placeOrder').disabled = !selectedPay();
+  }
+  syncPlaceOrder();
+
+  // 計測: ロード時 begin_checkout
+  window.DL.beginCheckout(window.Store.cartDLItems(), window.Store.cartValue());
+
+  // 配送ラジオ変更
+  document.getElementById('ship-cards').addEventListener('change', function (e) {
+    if (e.target.name !== 'ship') return;
+    syncActive('ship');
+    renderSummary();
+    var tier = (e.target.value === 'express' ? '速達' : '通常配送');
+    // valueは商品小計に統一(送料はshipping_tierで表現)。ファネル全体でvalueの意味を揃える。
+    window.DL.addShippingInfo(window.Store.cartDLItems(), subtotal, tier);
+  });
+
+  // 支払いラジオ変更
+  document.getElementById('pay-cards').addEventListener('change', function (e) {
+    if (e.target.name !== 'pay') return;
+    syncActive('pay');
+    syncPlaceOrder();
+    var pay = ({ credit: 'クレジットカード', cod: '代金引換', konbini: 'コンビニ払い' })[e.target.value];
+    // valueは商品小計に統一
+    window.DL.addPaymentInfo(window.Store.cartDLItems(), subtotal, pay);
+  });
+
+  // 注文を確定する
+  document.getElementById('placeOrder').addEventListener('click', function () {
+    if (!selectedPay()) return;
+    var subtotalNow = window.Store.cartValue();
+    var shipping = (selectedShip() === 'express' ? 550 : 0);
+    // GA4標準: purchase の value は「商品小計」。送料(shipping)・税(tax)は別フィールドで送る。
+    // これで value と Σ(item.price×quantity) が一致し、収益/AOV が送料分だけ膨らむのを防ぐ。
+    var value = subtotalNow;
+    var tax = Math.round(value - value / 1.1); // 税込価格からの内税(商品分)
+    var order = {
+      transaction_id: window.Store.genTransactionId(),
+      items: window.Store.cartDLItems(),
+      value: value,
+      tax: tax,
+      shipping: shipping
+    };
+    window.Store.saveOrder(order);
+    window.Store.clearCart();
+    location.href = 'complete.html';
+  });
+});
+</script>
+
+<div id="site-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/datalayer.js"></script>
+<script src="assets/js/common.js"></script>
+<!-- ページ別ロジックはこの下に1つの<script>で書く -->
+</body>
+</html>

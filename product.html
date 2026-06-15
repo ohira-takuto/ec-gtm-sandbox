@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>商品詳細 | UNILO (demo)</title>
+<meta name="description" content="商品詳細(PDP)">
+<link rel="stylesheet" href="assets/css/style.css">
+<script>window.dataLayer = window.dataLayer || []; window.__DL_DEBUG__ = true;</script>
+<!-- Google Tag Manager (プレースホルダ: GTM-XXXXXX) -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-XXXXXX');</script>
+<!-- End Google Tag Manager -->
+<!--
+  (任意) Google タグ gtag.js。GTM経由のGA4と二重計測になるため通常はこのままコメントで残す（学習用に併記）。
+  使う場合はGTM側のGA4設定タグを止めること。
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-XXXXXX');</script>
+-->
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXX" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div id="site-header"></div>
+
+<main class="container section" id="pdp-main"></main>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var main = document.getElementById('pdp-main');
+  if (!main) return;
+
+  var id = window.App.getParam('id');
+  var p = window.DATA.getById(id);
+
+  // 商品が見つからない場合
+  if (!p) {
+    main.innerHTML =
+      '<p class="empty">商品が見つかりません。<br><a href="index.html">トップに戻る</a></p>';
+    return;
+  }
+
+  // 選択状態
+  var selectedColor = (p.colors && p.colors[0]) || null;
+  var selectedSize = null;
+
+  // ---- パンくず ----
+  var catKey = p.categoryKey;
+  var breadcrumb =
+    '<nav class="breadcrumb">' +
+      '<a href="index.html">HOME</a><span>/</span>' +
+      '<a href="list.html?category=' + catKey + '">' + p.item_category + '</a><span>/</span>' +
+      '<span>' + p.item_name + '</span>' +
+    '</nav>';
+
+  // ---- カラースワッチ ----
+  var swatchesHtml = p.colors.map(function (c, i) {
+    var hex = window.DATA.colorHex[c] || '#cccccc';
+    var active = (c === selectedColor) ? ' is-active' : '';
+    return '<button type="button" class="swatch' + active + '" data-color="' + c + '"' +
+           ' title="' + c + '" aria-label="' + c + '"' +
+           ' style="background:' + hex + '"></button>';
+  }).join('');
+
+  // ---- サイズボタン ----
+  var sizesHtml = p.sizes.map(function (s) {
+    return '<button type="button" class="size-btn" data-size="' + s + '">' + s + '</button>';
+  }).join('');
+
+  // ---- 本文を組み立て ----
+  main.innerHTML =
+    breadcrumb +
+    '<div class="pdp">' +
+      '<div class="pdp__gallery" id="pdp-gallery">' + window.App.thumb(p, selectedColor) + '</div>' +
+      '<div class="pdp__info">' +
+        '<p class="pdp__cat">' + p.item_category + ' / ' + p.item_category2 + '</p>' +
+        '<h1 class="pdp__name">' + p.item_name + '</h1>' +
+        '<p class="pdp__id">品番: ' + p.item_id + '</p>' +
+        '<div class="pdp__price">' + window.App.priceHtml(p) + '</div>' +
+        '<p class="pdp__desc">' + p.desc + '</p>' +
+        '<div class="option-group">' +
+          '<span class="label">カラー<span class="picked" id="picked-color">' + (selectedColor || '') + '</span></span>' +
+          '<div class="swatches" id="swatches">' + swatchesHtml + '</div>' +
+        '</div>' +
+        '<div class="option-group">' +
+          '<span class="label">サイズ<span class="picked" id="picked-size"></span></span>' +
+          '<div class="size-list" id="size-list">' + sizesHtml + '</div>' +
+        '</div>' +
+        '<div class="qty-row">' +
+          '<div class="qty">' +
+            '<button type="button" id="qty-minus">-</button>' +
+            '<input type="text" id="qty-input" value="1" inputmode="numeric" readonly>' +
+            '<button type="button" id="qty-plus">+</button>' +
+          '</div>' +
+        '</div>' +
+        '<button class="btn btn--primary btn--block" id="add" disabled>カートに入れる</button>' +
+        '<div id="add-result"></div>' +
+      '</div>' +
+    '</div>';
+
+  // ---- 要素参照 ----
+  var gallery = document.getElementById('pdp-gallery');
+  var pickedColor = document.getElementById('picked-color');
+  var pickedSize = document.getElementById('picked-size');
+  var qtyInput = document.getElementById('qty-input');
+  var addBtn = document.getElementById('add');
+  var addResult = document.getElementById('add-result');
+
+  function refreshAddState() {
+    addBtn.disabled = !selectedSize;
+  }
+
+  function getQty() {
+    var q = parseInt(qtyInput.value, 10);
+    if (isNaN(q) || q < 1) q = 1;
+    return q;
+  }
+
+  // ---- カラー選択 ----
+  var swatchBtns = document.querySelectorAll('#swatches .swatch');
+  Array.prototype.forEach.call(swatchBtns, function (btn) {
+    btn.addEventListener('click', function () {
+      var color = btn.getAttribute('data-color');
+      selectedColor = color;
+      Array.prototype.forEach.call(swatchBtns, function (b) { b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      pickedColor.textContent = color;
+      // ギャラリーを選択中カラーで差し替え
+      gallery.innerHTML = window.App.thumb(p, color);
+    });
+  });
+
+  // ---- サイズ選択 ----
+  var sizeBtns = document.querySelectorAll('#size-list .size-btn');
+  Array.prototype.forEach.call(sizeBtns, function (btn) {
+    btn.addEventListener('click', function () {
+      var size = btn.getAttribute('data-size');
+      selectedSize = size;
+      Array.prototype.forEach.call(sizeBtns, function (b) { b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      pickedSize.textContent = size;
+      refreshAddState();
+    });
+  });
+
+  // ---- 数量 ----
+  document.getElementById('qty-minus').addEventListener('click', function () {
+    qtyInput.value = Math.max(1, getQty() - 1);
+  });
+  document.getElementById('qty-plus').addEventListener('click', function () {
+    qtyInput.value = getQty() + 1;
+  });
+  qtyInput.addEventListener('change', function () {
+    qtyInput.value = getQty();
+  });
+
+  // ---- カートに入れる ----
+  addBtn.addEventListener('click', function () {
+    if (!selectedSize) return;
+    var qty = getQty();
+    var variant = selectedColor + ' / ' + selectedSize;
+    window.Store.addItem(p.item_id, selectedColor, selectedSize, qty);
+    window.DL.addToCart(p, qty, variant);
+    window.App.updateCartCount();
+    // 続けて買い物できるUX: 遷移せずにカートを見る導線を出す
+    addResult.innerHTML =
+      '<p class="note">カートに追加しました。 <a href="cart.html">カートを見る</a></p>';
+  });
+
+  // ---- 計測: 商品詳細の表示（1回） ----
+  window.DL.viewItem(p);
+});
+</script>
+
+<div id="site-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/datalayer.js"></script>
+<script src="assets/js/common.js"></script>
+<!-- ページ別ロジックはこの下に1つの<script>で書く -->
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>カート | UNILO (demo)</title>
+<meta name="description" content="ショッピングカート">
+<link rel="stylesheet" href="assets/css/style.css">
+<script>window.dataLayer = window.dataLayer || []; window.__DL_DEBUG__ = true;</script>
+<!-- Google Tag Manager (プレースホルダ: GTM-XXXXXX) -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','GTM-XXXXXX');</script>
+<!-- End Google Tag Manager -->
+<!--
+  (任意) Google タグ gtag.js。GTM経由のGA4と二重計測になるため通常はこのままコメントで残す（学習用に併記）。
+  使う場合はGTM側のGA4設定タグを止めること。
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXX"></script>
+<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-XXXXXX');</script>
+-->
+</head>
+<body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXX" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+<div id="site-header"></div>
+
+<main class="container section">
+  <h1 class="page-title">カート</h1>
+  <div id="cart-root"></div>
+</main>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var root = document.getElementById('cart-root');
+  if (!root) return;
+
+  var lines = window.Store.cartLines();
+
+  // 空カート: view_cart は発火しない
+  if (!lines.length) {
+    root.innerHTML =
+      '<p class="empty">カートに商品がありません。</p>' +
+      '<p style="text-align:center;"><a class="btn btn--outline" href="index.html">買い物を続ける</a></p>';
+    return;
+  }
+
+  // ---- レイアウト骨組みを描画 ----
+  root.innerHTML =
+    '<div class="cart-layout">' +
+      '<div class="cart-list" id="cart-list"></div>' +
+      '<aside class="summary">' +
+        '<h3>注文サマリー</h3>' +
+        '<div class="summary-row"><span>小計</span><span data-subtotal></span></div>' +
+        '<div class="summary-row"><span>送料</span><span>無料</span></div>' +
+        '<div class="summary-row summary-row--total"><span>合計</span><span data-total></span></div>' +
+        '<a class="btn btn--dark btn--block" href="checkout.html">レジに進む</a>' +
+      '</aside>' +
+    '</div>';
+
+  var listEl = document.getElementById('cart-list');
+
+  // ---- カート行を描画 ----
+  function renderRows() {
+    lines = window.Store.cartLines();
+    listEl.innerHTML = lines.map(function (l, i) {
+      var p = l.product;
+      var lineTotal = window.DATA.effectivePrice(p) * l.qty;
+      return '' +
+        '<div class="cart-row" data-row="' + i + '">' +
+          window.App.thumb(p, l.color) +
+          '<div>' +
+            '<p class="cart-row__name">' + p.item_name + '</p>' +
+            '<p class="cart-row__meta">' + l.color + ' / ' + l.size + '</p>' +
+            '<div class="qty">' +
+              '<button type="button" data-qty-minus aria-label="数量を減らす">-</button>' +
+              '<input type="text" value="' + l.qty + '" readonly aria-label="数量">' +
+              '<button type="button" data-qty-plus aria-label="数量を増やす">+</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="cart-row__right">' +
+            '<span class="price" data-line-price>' + window.App.yen(lineTotal) + '</span>' +
+            '<button type="button" class="link-remove" data-remove>削除</button>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  // ---- サマリー金額を更新（GA4イベントは出さない） ----
+  function renderSummary() {
+    var value = window.Store.cartValue();
+    var yen = window.App.yen(value);
+    root.querySelector('[data-subtotal]').textContent = yen;
+    root.querySelector('[data-total]').textContent = yen;
+  }
+
+  // 行内の価格表示だけ更新（数量変更時）
+  function refreshLinePrice(rowEl, line) {
+    var priceEl = rowEl.querySelector('[data-line-price]');
+    if (priceEl) {
+      priceEl.textContent = window.App.yen(window.DATA.effectivePrice(line.product) * line.qty);
+    }
+  }
+
+  renderRows();
+  renderSummary();
+
+  // 計測: カート表示（描画後に1回）
+  window.DL.viewCart(window.Store.cartDLItems(), window.Store.cartValue());
+
+  // ---- イベント委譲 ----
+  listEl.addEventListener('click', function (e) {
+    var rowEl = e.target.closest('.cart-row');
+    if (!rowEl) return;
+    var i = Number(rowEl.getAttribute('data-row'));
+
+    // 削除
+    if (e.target.closest('[data-remove]')) {
+      var l = lines[i];
+      var p = l.product;
+      window.Store.removeItem(i);
+      window.DL.removeFromCart(p, l.qty, l.color + ' / ' + l.size);
+
+      var remaining = window.Store.cartLines();
+      if (!remaining.length) {
+        // 全削除後は空表示に切り替え（view_cart は再発火しない）
+        root.innerHTML =
+          '<p class="empty">カートに商品がありません。</p>' +
+          '<p style="text-align:center;"><a class="btn btn--outline" href="index.html">買い物を続ける</a></p>';
+      } else {
+        renderRows();      // 再描画（view_cart は再発火しない）
+        renderSummary();
+      }
+      window.App.updateCartCount();
+      return;
+    }
+
+    // 数量 -（GA4イベントは出さない）
+    if (e.target.closest('[data-qty-minus]')) {
+      var newMinus = Math.max(1, lines[i].qty - 1);
+      window.Store.updateQty(i, newMinus);
+      lines = window.Store.cartLines();
+      rowEl.querySelector('.qty input').value = lines[i].qty;
+      refreshLinePrice(rowEl, lines[i]);
+      renderSummary();
+      return;
+    }
+
+    // 数量 +（GA4イベントは出さない）
+    if (e.target.closest('[data-qty-plus]')) {
+      var newPlus = lines[i].qty + 1;
+      window.Store.updateQty(i, newPlus);
+      lines = window.Store.cartLines();
+      rowEl.querySelector('.qty input').value = lines[i].qty;
+      refreshLinePrice(rowEl, lines[i]);
+      renderSummary();
+      return;
+    }
+  });
+});
+</script>
+
+<div id="site-footer"></div>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/datalayer.js"></script>
+<script src="assets/js/common.js"></script>
+<!-- ページ別ロジックはこの下に1つの<script>で書く -->
+</body>
+</html>
