@@ -105,12 +105,16 @@ window.App = (function () {
       return '<a class="' + cls + '" href="list.html?category=' + c.key + '">' + c.name + '</a>';
     }).join('');
 
+    // ハンバーガー(モバイルのみCSSで表示)。アイコンは3本線。
+    var iconMenu = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>';
+
     el.innerHTML = '' +
       '<div class="demo-bar">これは GTM / GA4 計測の検証用デモサイトです（計測IDはプレースホルダ）。実際の購入はできません。</div>' +
       '<header class="site-header">' +
         '<div class="header-inner">' +
+          '<button class="nav-toggle" type="button" aria-label="メニュー" aria-expanded="false" aria-controls="global-nav">' + iconMenu + '</button>' +
           '<a class="logo" href="index.html">PG-Training</a>' +
-          '<nav class="global-nav">' + nav + '</nav>' +
+          '<nav class="global-nav" id="global-nav">' + nav + '</nav>' +
           '<div class="header-icons">' +
             '<span class="icon-btn" title="検索">' + iconSearch + '</span>' +
             '<a class="icon-btn" href="' + accountHref + '" title="アカウント">' + iconUser + '</a>' +
@@ -120,6 +124,16 @@ window.App = (function () {
           '</div>' +
         '</div>' +
       '</header>';
+
+    // ハンバーガーのトグル(モバイル)。デスクトップはCSSでボタン非表示のため無影響。
+    var header = el.querySelector('.site-header');
+    var toggle = el.querySelector('.nav-toggle');
+    if (toggle && header) {
+      toggle.addEventListener('click', function () {
+        var open = header.classList.toggle('nav-open');
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+    }
   }
 
   function renderFooter() {
