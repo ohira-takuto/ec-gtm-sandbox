@@ -1,0 +1,14 @@
+{
+  "name": "ec-gtm-sandbox (GA4/GTM研修 Stage3)",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "postCreateCommand": "npm install",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": { "label": "EC sandbox", "onAutoForward": "openPreview" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": []
+    }
+  }
+}

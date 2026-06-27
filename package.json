@@ -1,0 +1,16 @@
+{
+  "name": "ec-gtm-sandbox-server",
+  "version": "1.0.0",
+  "description": "GA4/GTM研修 Stage3 サーバー編：サーバーレンダリング + Measurement Protocol（(B)）のデモ用Nodeサーバー",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
